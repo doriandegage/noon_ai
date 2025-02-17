@@ -1,6 +1,6 @@
+import os
 from flask import Flask, request, jsonify
 import openai
-import os
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -23,18 +23,18 @@ def ask_noon_ai():
         return jsonify({"error": "No message provided"}), 400
 
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+        response = openai.chat.completions.create(  # ✅ FIXED API CALL
+            model="gpt-3.5-turbo",  # ✅ Using GPT-3.5 for speed
             messages=[
                 {"role": "system", "content": "You are Noon AI, an ecological strategist and cognitive accelerator."},
                 {"role": "user", "content": user_input}
             ]
         )
-        return jsonify({"response": response["choices"][0]["message"]["content"]})
+        return jsonify({"response": response.choices[0].message.content})  # ✅ Corrected JSON output
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))  # Ensure Flask listens on Render's port
+    port = int(os.environ.get("PORT", 10000))  # ✅ Ensure it runs on Render's assigned port
     app.run(host="0.0.0.0", port=port, debug=True)
