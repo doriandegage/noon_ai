@@ -24,7 +24,7 @@ def ask_noon_ai():
 
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are Noon AI, an ecological strategist and cognitive accelerator."},
                 {"role": "user", "content": user_input}
