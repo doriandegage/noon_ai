@@ -1,46 +1,42 @@
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 import openai
-import json
 import os
+
+# Use the new OpenAI client
+client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 app = Flask(__name__)
 CORS(app)
 
-# OpenAI API Key (Ensure it's set in your environment variables)
-openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-@app.route('/')
+@app.route("/")
 def home():
-    return "Noon AI is running!"
+    return "Noon AI is running."
 
-@app.route('/ask', methods=['POST'])
+@app.route("/ask", methods=["POST"])
 def ask():
     try:
-        data = request.get_json()
-        user_input = data.get("message", "")
-
+        user_input = request.json.get("message")
         if not user_input:
-            return jsonify({"error": "No input provided"}), 400
+            return jsonify({"error": "No message provided."}), 400
 
         def generate():
-            response = openai_client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are Noon AI, an ecological strategist. Provide structured responses with bullet points, numbered steps, or categories."},
-                    {"role": "user", "content": user_input}
-                ],
+            response = client.chat.completions.create(
+                model="gpt-4-turbo",
+                messages=[{"role": "system", "content": "You are an ecological strategist providing advice on sustainable solutions."},
+                          {"role": "user", "content": user_input}],
                 stream=True
             )
-
             for chunk in response:
                 if chunk.choices[0].delta.content:
                     yield chunk.choices[0].delta.content
 
-        return Response(generate(), content_type="text/plain")
+        return Response(generate(), content_type="text/event-stream")
 
-    except Exception as e:
+    except openai.OpenAIError as e:
         return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        return jsonify({"error": "An error occurred: " + str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000, debug=True)
+if __name__ == "__main__":
+    app.run(debug=True, port=10000)
