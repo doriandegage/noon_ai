@@ -1,42 +1,33 @@
-from flask import Flask, request, jsonify, Response
-from flask_cors import CORS
 import openai
 import os
-
-# Use the new OpenAI client
-client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+from flask import Flask, request, jsonify
+from flask_cors import CORS  
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/ask": {"origins": "*"}})  # ✅ Enable CORS for frontend (Squarespace)
 
-@app.route("/")
-def home():
-    return "Noon AI is running."
+# ✅ Initialize OpenAI Client with API Key
+openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-@app.route("/ask", methods=["POST"])
+@app.route('/ask', methods=['POST'])
 def ask():
+    data = request.get_json()
+    user_message = data.get("message", "")
+
     try:
-        user_input = request.json.get("message")
-        if not user_input:
-            return jsonify({"error": "No message provided."}), 400
+        # ✅ Updated OpenAI API call (Fixed for latest version)
+        response = openai_client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are an ecological strategist assistant."},
+                {"role": "user", "content": user_message}
+            ]
+        )
 
-        def generate():
-            response = client.chat.completions.create(
-                model="gpt-4-turbo",
-                messages=[{"role": "system", "content": "You are an ecological strategist providing advice on sustainable solutions."},
-                          {"role": "user", "content": user_input}],
-                stream=True
-            )
-            for chunk in response:
-                if chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
-
-        return Response(generate(), content_type="text/event-stream")
+        return jsonify({"response": response.choices[0].message.content})
 
     except openai.OpenAIError as e:
         return jsonify({"error": str(e)}), 500
-    except Exception as e:
-        return jsonify({"error": "An error occurred: " + str(e)}), 500
 
-if __name__ == "__main__":
-    app.run(debug=True, port=10000)
+if __name__ == '__main__':
+    app.run(host="0.0.0.0", port=10000, debug=True)
