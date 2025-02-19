@@ -4,10 +4,15 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS  
 
 app = Flask(__name__)
-CORS(app, resources={r"/ask": {"origins": "*"}})  # ✅ Enable CORS for frontend (Squarespace)
+CORS(app, resources={r"/ask": {"origins": "*"}})  # ✅ Enable CORS for Squarespace
 
 # ✅ Initialize OpenAI Client with API Key
 openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+@app.route('/ask', methods=['OPTIONS'])
+def options():
+    """Handles CORS preflight requests"""
+    return '', 204
 
 @app.route('/ask', methods=['POST'])
 def ask():
