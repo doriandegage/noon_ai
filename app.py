@@ -3,26 +3,34 @@ from flask_cors import CORS
 import os
 import openai
 
-# Initialize Flask App
+# ✅ Initialize Flask App
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-# Load API Key from Environment Variables
+# ✅ Load API Key (Ensure this is set in Render's Environment Variables)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
 if not OPENAI_API_KEY:
     raise ValueError("Missing OpenAI API Key! Set it in Render's environment variables.")
 
 # ✅ Initialize OpenAI client
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
-@app.route('/ask', methods=['POST'])
+# ✅ Root Route (Prevents 404 on Render)
+@app.route("/")
+def home():
+    return "Noon AI is Running!"
+
+# ✅ Handle AI Requests
+@app.route("/ask", methods=["POST"])
 def ask():
     try:
         data = request.get_json()
-        user_message = data.get("message", "")
+        user_message = data.get("message", "").strip()
 
-        # ✅ Get response from OpenAI
+        if not user_message:
+            return jsonify({"error": "No message provided"}), 400
+
+        # ✅ OpenAI Chat Request
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
@@ -31,13 +39,14 @@ def ask():
             ]
         )
 
-        # ✅ Extract & return only the content (Fixing serialization issue)
-        chat_response = response.choices[0].message.content
-
-        return jsonify({"response": chat_response})
+        # ✅ Extract and return AI response
+        ai_response = response.choices[0].message.content.strip()
+        return jsonify({"response": ai_response})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5050, debug=True)
+# ✅ Run App (Uses Render's Dynamic Port)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))  # Render assigns this dynamically
+    app.run(host="0.0.0.0", port=port, debug=True)
