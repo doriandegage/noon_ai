@@ -7,46 +7,40 @@ import openai
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-# ✅ Load API Key (Ensure this is set in Render's Environment Variables)
+# ✅ Load API Key from Environment Variables
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise ValueError("Missing OpenAI API Key! Set it in Render's environment variables.")
 
-# ✅ Initialize OpenAI client
+# ✅ Ensure API Key is Set
+if not OPENAI_API_KEY:
+    raise ValueError("❌ Missing OpenAI API Key! Set it in Render's environment variables.")
+
+# ✅ OpenAI Client Initialization
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
-# ✅ Root Route (Prevents 404 on Render)
-@app.route("/")
+@app.route("/", methods=["GET"])
 def home():
-    return "Noon AI is Running!"
+    return jsonify({"message": "✅ Noon AI is live on port 5050!"})
 
-# ✅ Handle AI Requests
 @app.route("/ask", methods=["POST"])
 def ask():
     try:
         data = request.get_json()
-        user_message = data.get("message", "").strip()
+        user_message = data.get("message", "")
 
-        if not user_message:
-            return jsonify({"error": "No message provided"}), 400
-
-        # ✅ OpenAI Chat Request
+        # ✅ OpenAI Chat API Request
         response = client.chat.completions.create(
             model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are an ecological strategist assistant."},
-                {"role": "user", "content": user_message}
-            ]
+            messages=[{"role": "system", "content": "You are an ecological strategist assistant."},
+                      {"role": "user", "content": user_message}]
         )
 
-        # ✅ Extract and return AI response
-        ai_response = response.choices[0].message.content.strip()
-        return jsonify({"response": ai_response})
+        # ✅ Return AI Response
+        return jsonify({"response": response.choices[0].message["content"]})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ✅ Run App (Uses Render's Dynamic Port)
+# ✅ Run Flask App on Port 5050
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # Render assigns this dynamically
+    port = int(os.environ.get("PORT", 5050))  # ✅ Sticking to 5050
     app.run(host="0.0.0.0", port=port, debug=True)
