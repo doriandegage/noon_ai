@@ -3,18 +3,17 @@ from flask_cors import CORS
 import os
 import openai
 
-# ✅ Initialize Flask App
+# Initialize Flask App
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-# ✅ Load API Key from Environment Variable
+# Load API Key from Environment Variables
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# ✅ Check if API key is set correctly
 if not OPENAI_API_KEY:
     raise ValueError("Missing OpenAI API Key! Set it in Render's environment variables.")
 
-# ✅ Initialize OpenAI client (Fix for OpenAI >= 1.0.0)
+# ✅ Initialize OpenAI client
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 @app.route('/ask', methods=['POST'])
@@ -23,7 +22,7 @@ def ask():
         data = request.get_json()
         user_message = data.get("message", "")
 
-        # ✅ OpenAI API Call (Updated for latest OpenAI versions)
+        # ✅ Get response from OpenAI
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
@@ -32,12 +31,13 @@ def ask():
             ]
         )
 
-        return jsonify({"response": response.choices[0].message.content})
+        # ✅ Extract & return only the content (Fixing serialization issue)
+        chat_response = response.choices[0].message.content
+
+        return jsonify({"response": chat_response})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ✅ Start Flask Server with Render-Compatible Port
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Render sets PORT automatically
-    app.run(host="0.0.0.0", port=port, debug=True)
+if __name__ == '__main__':
+    app.run(host="0.0.0.0", port=5050, debug=True)
