@@ -1,4 +1,4 @@
-import os
+'import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS  # Enables frontend communication
 import openai
@@ -74,10 +74,10 @@ def chat():
             })
 
         # 🔹 Call OpenAI GPT-4 for Advanced AI Responses
-        response = openai.chat.completions.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": user_message}]
-        )
+response = openai.client.chat.completions.create(
+    model="gpt-4",
+    messages=[{"role": "user", "content": user_message}]
+)        )
 
         ai_response = response.choices[0].message.content
 
