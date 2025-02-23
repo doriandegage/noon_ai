@@ -1,57 +1,27 @@
-kimport os
+import os
 import openai
 import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-# === 🚀 Initialize Flask App ===
+# Initialize Flask app
 app = Flask(__name__)
-CORS(app)  # Enables CORS for frontend
+CORS(app, resources={r"/*": {"origins": "*"}})  # Allow frontend requests
 
 # === 🔑 Load API Keys ===
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")  # Optional (Set it if using weather)
 if not OPENAI_API_KEY:
     raise ValueError("Missing OpenAI API Key. Set 'OPENAI_API_KEY' as an environment variable.")
+
 openai.api_key = OPENAI_API_KEY
 
-# === 🏡 Homepage Route ===
+# === 🌎 Home Route ===
 @app.route("/")
 def home():
-    return jsonify({"message": "✅ Noon AI is live with Eco Strategy & Weather!"})
+    return jsonify({"message": "✅ Noon AI is live with eco-strategy support!"})
 
-# === 🔥 Status Check Route ===
-@app.route("/status")
-def status():
-    return jsonify({"status": "🟢 Running", "port": os.environ.get("PORT", "5050")})
-
-# === 🌍 Function to Fetch Weather Data ===
-def get_weather(city):
-    try:
-        # Convert city to latitude & longitude using OpenWeatherMap API (free signup needed)
-        geocode_url = f"http://api.openweathermap.org/geo/1.0/direct?q={city},US&limit=1&appid=YOUR_OPENWEATHER_API_KEY"
-        geo_response = requests.get(geocode_url).json()
-
-        if not geo_response:
-            return "⚠️ City not found. Please try a different location."
-
-        lat, lon = geo_response[0]['lat'], geo_response[0]['lon']
-
-        # Get weather from weather.gov using lat/lon
-        weather_url = f"https://api.weather.gov/points/{lat},{lon}/forecast"
-        headers = {"User-Agent": "noon.ai (your-email@example.com)"}  # REQUIRED for weather.gov API
-
-        weather_response = requests.get(weather_url, headers=headers)
-        if weather_response.status_code == 200:
-            weather_data = weather_response.json()
-            forecast = weather_data['properties']['periods'][0]  # Get first forecast period
-            return f"🌤️ {forecast['name']} in {city}: {forecast['detailedForecast']}"
-        else:
-            return "⚠️ Weather data unavailable."
-
-    except Exception as e:
-        return f"⚠️ Error fetching weather data: {str(e)}"
-
-# === 🧠 AI Chatbot Route ===
+# === 💬 AI Chatbot Route ===
 @app.route("/chat", methods=["POST"])
 def chat():
     try:
@@ -61,38 +31,41 @@ def chat():
         if not user_message:
             return jsonify({"error": "Message is required"}), 400
 
-        # === 🌦️ Handle Weather Queries ===
-        if "weather" in user_message:
-            words = user_message.split()
-            for word in words:
-                if word.capitalize() not in ["Weather", "the", "in", "for", "is"]:
-                    city = word.capitalize()
-                    weather_info = get_weather(city)
-                    return jsonify({"response": weather_info})
-
-        # === 🚀 Eco Strategy Responses ===
-        eco_strategies = {
-            "solar irrigation": "🌞 Learn more about Solar Irrigation here: https://noon.eco/solar-irrigation",
-            "rain harvesting": "🌧️ Learn more about Rain Harvesting here: https://noon.eco/rain-harvesting",
-            "water management": "🌊 Learn more about Water Management here: https://noon.eco/water-management"
+        # === 🌞 Eco Topics (Instant Responses) ===
+        eco_topics = {
+            "solar irrigation": "🌞 Learn more: https://noon.eco/solar-irrigation",
+            "rain harvesting": "🌧️ Learn more: https://noon.eco/rain-harvesting",
+            "water management": "💧 Learn more: https://noon.eco/water-management"
         }
-        for key, response in eco_strategies.items():
-            if key in user_message:
+        for topic, response in eco_topics.items():
+            if topic in user_message:
                 return jsonify({"response": response})
 
-        # === 🤖 OpenAI Chat Completion (v1 Fix) ===
+        # === 🌦️ Weather API Integration (Optional) ===
+        if "weather" in user_message and WEATHER_API_KEY:
+            location = "San Antonio"  # Default location (Modify as needed)
+            weather_url = f"https://api.weather.gov/points/29.4241,-98.4936"
+            headers = {"User-Agent": "NoonAI/1.0 (contact@noon.eco)"}
+            response = requests.get(weather_url, headers=headers).json()
+
+            # Get forecast URL from Weather.gov API
+            forecast_url = response["properties"]["forecast"]
+            forecast_data = requests.get(forecast_url, headers=headers).json()
+            forecast = forecast_data["properties"]["periods"][0]["detailedForecast"]
+
+            return jsonify({"response": f"🌤️ Weather in {location}: {forecast}"})
+
+        # === 🤖 OpenAI AI Chat (Updated for v1 API) ===
         response = openai.chat.completions.create(
             model="gpt-4",
             messages=[{"role": "user", "content": user_message}]
         )
 
-        ai_response = response.choices[0].message.content
-        return jsonify({"response": ai_response})
+        return jsonify({"response": response.choices[0].message.content})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# === 🚀 Run Flask app on Render or locally ===
+# === 🚀 Run Flask App ===
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5050))  # Render sets $PORT automatically
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5050)))
