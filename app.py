@@ -1,49 +1,39 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
-import openai
 
-# ✅ Initialize Flask App
 app = Flask(__name__)
-CORS(app)  # Enable CORS for cross-origin requests
+CORS(app)  # Enable CORS for all requests
 
-# ✅ Load API Key from Environment Variable
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise ValueError("❌ OpenAI API Key is missing! Set it in Render's Environment Variables.")
-
-# ✅ OpenAI Client
-openai.api_key = OPENAI_API_KEY
-
-# ✅ Health Check Route (Prevents 404 Errors)
-@app.route("/", methods=["GET"])
+# ✅ Health Check Route (Ensures Render detects the service)
+@app.route("/")
 def home():
     return jsonify({"message": "Noon AI is running!"})
 
 # ✅ Chatbot Route
 @app.route("/ask", methods=["POST"])
 def ask():
-    try:
-        data = request.get_json()
-        user_message = data.get("message", "")
+    data = request.get_json()
+    
+    if not data or "message" not in data:
+        return jsonify({"error": "No message provided"}), 400
 
-        if not user_message:
-            return jsonify({"error": "No message provided!"}), 400
+    user_message = data["message"].strip().lower()
 
-        # ✅ Call OpenAI API
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "system", "content": "You are an ecological strategist AI."},
-                      {"role": "user", "content": user_message}]
-        )
+    # ✅ Basic Ecological Response Logic
+    responses = {
+        "hello": "Hello! How can I assist you with ecological strategies?",
+        "rainwater harvesting": "Rainwater can be collected using bioswales, permeable surfaces, and storage tanks.",
+        "solar irrigation": "Solar irrigation uses solar-powered pumps to deliver water efficiently to plants.",
+        "bioswales": "Bioswales help manage stormwater by filtering runoff and improving groundwater recharge."
+    }
 
-        ai_response = response["choices"][0]["message"]["content"]
-        return jsonify({"response": ai_response})
+    # Find a matching response or return a default one
+    response_text = responses.get(user_message, "I specialize in ecological strategies. What would you like to explore?")
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({"response": response_text})
 
-# ✅ Run App on Port 5050
+# ✅ Ensure the app runs on the correct port (Render uses $PORT)
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5050))  # Render sets PORT dynamically
+    port = int(os.environ.get("PORT", 5050))  # Default to 5050
     app.run(host="0.0.0.0", port=port)
