@@ -1,73 +1,37 @@
+from flask import Flask, request, jsonify, session
+from flask_session import Session
 import os
-import requests
-from flask import Flask, request, jsonify
-from flask_cors import CORS
 
+# Initialize Flask app
 app = Flask(__name__)
-CORS(app)
 
-# Load API Keys
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-WEATHER_USER_AGENT = "hola@noon.eco"  # Your email for Weather.gov API requests
-DEFAULT_CITY = "Austin"
+# Enable session storage for conversation history
+app.config["SESSION_TYPE"] = "filesystem"
+Session(app)
 
-@app.route("/")
-def home():
-    return jsonify({"message": "✅ Noon AI is live with eco strategy & weather updates!"})
+# Example predefined ecological strategies
+ECOLOGICAL_STRATEGIES = {
+    "rainwater harvesting": "Rainwater can be collected using bioswales, permeable surfaces, and storage tanks.",
+    "soil regeneration": "Using compost, cover crops, and mycorrhizal fungi improves soil structure and fertility.",
+    "native plant restoration": "Native plants require less water and support local wildlife while preventing soil erosion.",
+    "solar irrigation": "Solar-powered pumps reduce dependency on fossil fuels for irrigation.",
+    "biodiversity enhancement": "Creating microhabitats, planting pollinator-friendly species, and avoiding monoculture helps increase biodiversity."
+}
 
-@app.route("/status")
-def status():
-    return jsonify({"status": "🟢 Running", "port": os.environ.get("PORT", "5050")})
+@app.route("/ask", methods=["POST"])
+def ask():
+    """Handles chatbot queries related to ecological strategies."""
+    data = request.get_json()
+    user_message = data.get("message", "").lower()
 
-@app.route("/chat", methods=["POST"])
-def chat():
-    try:
-        data = request.json
-        user_message = data.get("message", "").lower()
+    # Search for predefined strategies
+    response = "I can assist with ecological strategies! What specific area are you focused on?"
+    for key in ECOLOGICAL_STRATEGIES:
+        if key in user_message:
+            response = ECOLOGICAL_STRATEGIES[key]
+            break
 
-        if not user_message:
-            return jsonify({"error": "Message is required"}), 400
-
-        # Weather API Handling
-        if "weather" in user_message:
-            city = DEFAULT_CITY
-            if "in" in user_message:
-                parts = user_message.split("in")
-                if len(parts) > 1:
-                    city = parts[1].strip()
-
-            weather_url = f"https://api.weather.gov/points/30.2672,-97.7431"  # Austin coordinates
-            headers = {"User-Agent": WEATHER_USER_AGENT}
-
-            try:
-                response = requests.get(weather_url, headers=headers)
-                response.raise_for_status()
-                data = response.json()
-
-                forecast_url = data["properties"]["forecast"]
-                forecast_response = requests.get(forecast_url, headers=headers).json()
-                forecast = forecast_response["properties"]["periods"][0]["detailedForecast"]
-
-                return jsonify({"response": f"🌤️ {city} Weather: {forecast}"})
-            except Exception as e:
-                return jsonify({"error": f"Failed to fetch weather: {str(e)}"}), 500
-
-        # Eco Strategy Responses
-        eco_topics = {
-            "solar irrigation": "🌞 Solar irrigation is an energy-efficient way to water crops using solar-powered pumps. Learn more at https://noon.eco/solar-irrigation",
-            "rain harvesting": "💧 Rain harvesting captures and stores rainwater for later use. It helps reduce water bills and supports sustainability. Read more at https://noon.eco/rain-harvesting",
-            "bioswales": "🌿 Bioswales help manage stormwater runoff, reducing flooding and improving water quality. Explore bioswale solutions at https://noon.eco/bioswales",
-        }
-
-        for key, response in eco_topics.items():
-            if key in user_message:
-                return jsonify({"response": response})
-
-        return jsonify({"response": "I can provide insights on eco-strategies, water systems, and sustainable solutions. Ask me about solar irrigation, rain harvesting, or bioswales!"})
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({"response": response})
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5050))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=5050)
