@@ -1,37 +1,48 @@
-from flask import Flask, request, jsonify, session
-from flask_session import Session
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 import os
+import openai
 
-# Initialize Flask app
+# ✅ Initialize Flask App
 app = Flask(__name__)
+CORS(app)  # Enable CORS for cross-origin requests
 
-# Enable session storage for conversation history
-app.config["SESSION_TYPE"] = "filesystem"
-Session(app)
+# ✅ Load API Key from Environment Variable
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    raise ValueError("❌ OpenAI API Key is missing! Set it in Render's Environment Variables.")
 
-# Example predefined ecological strategies
-ECOLOGICAL_STRATEGIES = {
-    "rainwater harvesting": "Rainwater can be collected using bioswales, permeable surfaces, and storage tanks.",
-    "soil regeneration": "Using compost, cover crops, and mycorrhizal fungi improves soil structure and fertility.",
-    "native plant restoration": "Native plants require less water and support local wildlife while preventing soil erosion.",
-    "solar irrigation": "Solar-powered pumps reduce dependency on fossil fuels for irrigation.",
-    "biodiversity enhancement": "Creating microhabitats, planting pollinator-friendly species, and avoiding monoculture helps increase biodiversity."
-}
+# ✅ OpenAI Client
+openai.api_key = OPENAI_API_KEY
 
+# ✅ Health Check Route (Prevents 404 Errors)
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"message": "Noon AI is running!"})
+
+# ✅ Chatbot Route
 @app.route("/ask", methods=["POST"])
 def ask():
-    """Handles chatbot queries related to ecological strategies."""
-    data = request.get_json()
-    user_message = data.get("message", "").lower()
+    try:
+        data = request.get_json()
+        user_message = data.get("message", "")
 
-    # Search for predefined strategies
-    response = "I can assist with ecological strategies! What specific area are you focused on?"
-    for key in ECOLOGICAL_STRATEGIES:
-        if key in user_message:
-            response = ECOLOGICAL_STRATEGIES[key]
-            break
+        if not user_message:
+            return jsonify({"error": "No message provided!"}), 400
 
-    return jsonify({"response": response})
+        # ✅ Call OpenAI API
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "system", "content": "You are an ecological strategist AI."},
+                      {"role": "user", "content": user_message}]
+        )
 
+        ai_response = response["choices"][0]["message"]["content"]
+        return jsonify({"response": ai_response})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ✅ Run App on Port 5050
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5050)
